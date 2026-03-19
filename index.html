@@ -15,16 +15,22 @@ body{
   color:#e5e7eb;
 }
 
+header{
+  padding:14px 18px;
+  border-bottom:1px solid #1e293b;
+  background:#020617;
+}
+
 main{
   display:grid;
   grid-template-columns:300px 1fr;
-  height:100vh;
+  height:calc(100vh - 52px);
 }
 
 aside{
   padding:12px;
   border-right:1px solid #1e293b;
-  overflow:auto;
+  overflow-y:auto;
 }
 
 section{
@@ -42,45 +48,43 @@ input,button{
   color:white;
 }
 
-/* COURSE CARD */
+button:hover{
+  background:#1e293b;
+  cursor:pointer;
+}
+
 .course{
   border:1px solid #334155;
   border-radius:12px;
   padding:10px;
   margin-bottom:12px;
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
 }
 
-/* PROGRESS BAR */
-.progress{
-  height:6px;
-  background:#020617;
-  border-radius:6px;
-  overflow:hidden;
-  margin-top:6px;
-}
-
-.progress div{
-  height:100%;
-  background:#38bdf8;
-}
-
-/* REMOVE */
+/* REMOVE BUTTON */
 .deleteBtn{
   background:#ef4444;
   border:none;
-  padding:6px;
+  padding:6px 10px;
   border-radius:8px;
-  margin-top:6px;
+  font-size:12px;
   cursor:pointer;
+}
+
+.deleteBtn:hover{
+  background:#dc2626;
 }
 
 #player{
   width:100%;
   aspect-ratio:16/9;
-  border-radius:12px;
+  border-radius:14px;
+  background:black;
 }
 
-/* PLAYLIST BUTTON */
+/* BUTTON */
 .playlistBtn{
   position:absolute;
   top:20px;
@@ -89,6 +93,7 @@ input,button{
   padding:8px 12px;
   border-radius:8px;
   cursor:pointer;
+  z-index:10;
 }
 
 /* PANEL */
@@ -119,11 +124,13 @@ input,button{
 
 <body>
 
+<header><strong>StudyTube</strong></header>
+
 <main>
 
 <aside>
 <input id="title" placeholder="Course name">
-<input id="url" placeholder="Playlist link">
+<input id="url" placeholder="YouTube playlist link">
 <button onclick="addCourse()">Add</button>
 
 <div id="courses"></div>
@@ -141,13 +148,13 @@ input,button{
 </main>
 
 <script>
-let courses = JSON.parse(localStorage.getItem("study_progress")||"[]");
+let courses = JSON.parse(localStorage.getItem("studytube_courses")||"[]");
 let player;
 let currentIndex=null;
 
 /* SAVE */
 function save(){
- localStorage.setItem("study_progress",JSON.stringify(courses));
+ localStorage.setItem("studytube_courses",JSON.stringify(courses));
 }
 
 /* ADD */
@@ -165,25 +172,18 @@ function addCourse(){
    return;
  }
 
- courses.push({
-   title,
-   listId,
-   video:0,
-   time:0,
-   total:0
- });
-
+ courses.push({title,listId});
  save();
  render();
 }
 
 /* REMOVE */
 function removeCourse(i){
- if(!confirm("Delete?")) return;
+ if(!confirm("Delete this playlist?")) return;
 
- if(i===currentIndex && player){
+ if(i === currentIndex && player){
    player.stopVideo();
-   currentIndex=null;
+   currentIndex = null;
  }
 
  courses.splice(i,1);
@@ -191,33 +191,26 @@ function removeCourse(i){
  render();
 }
 
-/* RENDER */
+/* RENDER COURSES */
 function render(){
  let box=document.getElementById("courses");
  box.innerHTML="";
 
  courses.forEach((c,i)=>{
-
-  let percent = c.total
-    ? Math.floor((c.video / c.total) * 100)
-    : 0;
-
   let div=document.createElement("div");
   div.className="course";
 
-  div.innerHTML=`
-    <strong>${c.title}</strong>
-    <div class="progress">
-      <div style="width:${percent}%"></div>
-    </div>
-    <small>${percent}% complete</small>
+  div.innerHTML = `
+    <span>${c.title}</span>
     <button class="deleteBtn">Remove</button>
   `;
 
+  /* OPEN */
   div.onclick=()=>openCourse(i);
 
+  /* REMOVE BUTTON FIX */
   div.querySelector(".deleteBtn").onclick=(e)=>{
-    e.stopPropagation();
+    e.stopPropagation(); // IMPORTANT
     removeCourse(i);
   };
 
@@ -228,14 +221,7 @@ function render(){
 /* OPEN */
 function openCourse(i){
  currentIndex=i;
- let c=courses[i];
-
- player.loadPlaylist({
-   list:c.listId,
-   index:c.video,
-   startSeconds:c.time
- });
-
+ player.loadPlaylist({list:courses[i].listId});
  waitForPlaylist();
 }
 
@@ -244,25 +230,10 @@ function waitForPlaylist(retry=0){
  let list=player.getPlaylist();
 
  if(list && list.length){
-   courses[currentIndex].total = list.length;
    renderPlaylist();
- } else if(retry<10){
+ } else if(retry < 10){
    setTimeout(()=>waitForPlaylist(retry+1),500);
  }
-}
-
-/* SAVE PROGRESS */
-function saveProgress(){
- if(currentIndex===null) return;
-
- let c=courses[currentIndex];
-
- c.video = player.getPlaylistIndex();
- c.time = Math.floor(player.getCurrentTime());
- c.total = player.getPlaylist()?.length || c.total;
-
- save();
- render();
 }
 
 /* TOGGLE */
@@ -286,7 +257,9 @@ function renderPlaylist(){
 
    div.innerText="Video "+(i+1);
 
-   div.onclick=()=>player.playVideoAt(i);
+   div.onclick=()=>{
+     player.playVideoAt(i);
+   };
 
    panel.appendChild(div);
  });
@@ -296,15 +269,7 @@ function renderPlaylist(){
 function onYouTubeIframeAPIReady(){
  player=new YT.Player("player",{
    events:{
-     onStateChange:(e)=>{
-
-       if(
-         e.data===YT.PlayerState.PAUSED ||
-         e.data===YT.PlayerState.ENDED
-       ){
-         saveProgress();
-       }
-
+     onStateChange:()=>{
        renderPlaylist();
      }
    }
