@@ -72,6 +72,18 @@ input,button{
   border-radius:10px;
 }
 
+/* SPEED DISPLAY */
+#speedDisplay{
+  position:absolute;
+  bottom:20px;
+  right:20px;
+  background:#020617;
+  border:1px solid #334155;
+  padding:6px 10px;
+  border-radius:8px;
+  font-size:14px;
+}
+
 /* PLAYLIST BUTTON */
 .playlistBtn{
   position:absolute;
@@ -127,6 +139,7 @@ input,button{
 <section>
 
 <div id="player"></div>
+<div id="speedDisplay">1x</div>
 
 <div class="playlistBtn" onclick="togglePlaylist()">📂 Playlist</div>
 <div id="playlistPanel" class="playlistPanel"></div>
@@ -141,6 +154,7 @@ let progress = JSON.parse(localStorage.getItem("progress") || "{}");
 
 let player;
 let currentCourse = null;
+let currentSpeed = 1;
 
 /* PLAYLIST ID */
 function getPlaylistId(url){
@@ -175,7 +189,7 @@ function removeCourse(i){
   render();
 }
 
-/* RENDER COURSES */
+/* RENDER */
 function render(){
   let box = document.getElementById("courses");
   box.innerHTML = "";
@@ -211,16 +225,19 @@ function openCourse(i){
     listType: "playlist"
   });
 
-  setTimeout(renderPlaylistPanel, 1500);
+  currentSpeed = 1;
+  setTimeout(()=>{
+    updateSpeedDisplay();
+    renderPlaylistPanel();
+  },1500);
 }
 
-/* TOGGLE PANEL */
+/* PLAYLIST PANEL */
 function togglePlaylist(){
   let p = document.getElementById("playlistPanel");
   p.style.display = p.style.display === "block" ? "none" : "block";
 }
 
-/* RENDER PLAYLIST PANEL */
 function renderPlaylistPanel(){
   if(!player) return;
 
@@ -248,6 +265,48 @@ function renderPlaylistPanel(){
     panel.appendChild(div);
   });
 }
+
+/* SPEED CONTROL */
+function updateSpeedDisplay(){
+  document.getElementById("speedDisplay").innerText = currentSpeed + "x";
+}
+
+function changeSpeed(delta){
+  if(!player) return;
+
+  let rates = player.getAvailablePlaybackRates();
+  let i = rates.indexOf(currentSpeed);
+
+  if(i === -1){
+    i = rates.findIndex(r => r > currentSpeed);
+  }
+
+  let newIndex = i + delta;
+
+  if(newIndex < 0 || newIndex >= rates.length) return;
+
+  currentSpeed = rates[newIndex];
+  player.setPlaybackRate(currentSpeed);
+
+  updateSpeedDisplay();
+}
+
+/* KEYBOARD */
+document.addEventListener("keydown", (e)=>{
+  if(e.target.tagName === "INPUT") return;
+
+  if(e.shiftKey && e.key === ">"){
+    changeSpeed(1);
+  }
+  else if(e.shiftKey && e.key === "<"){
+    changeSpeed(-1);
+  }
+  else if(e.key === "0"){
+    currentSpeed = 1;
+    player.setPlaybackRate(1);
+    updateSpeedDisplay();
+  }
+});
 
 /* PROGRESS */
 function updateProgress(){
