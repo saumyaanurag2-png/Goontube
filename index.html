@@ -1,279 +1,211 @@
-<!DOCTYPE html> 
+<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
+<title>Goontube</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>StudyTube</title>
 
 <script src="https://www.youtube.com/iframe_api"></script>
 
 <style>
 body{
   margin:0;
-  font-family:system-ui;
+  font-family:sans-serif;
   background:#0b1220;
-  color:#e5e7eb;
+  color:white;
 }
 
 header{
-  padding:14px 18px;
-  border-bottom:1px solid #1e293b;
+  padding:12px;
   background:#020617;
+  border-bottom:1px solid #1e293b;
 }
 
 main{
   display:grid;
   grid-template-columns:300px 1fr;
-  height:calc(100vh - 52px);
+  height:calc(100vh - 50px);
 }
 
 aside{
-  padding:12px;
+  padding:10px;
   border-right:1px solid #1e293b;
-  overflow-y:auto;
 }
 
 section{
-  padding:12px;
-  position:relative;
+  padding:10px;
 }
 
 input,button{
   width:100%;
   padding:10px;
   margin-bottom:8px;
-  border-radius:10px;
+  border-radius:8px;
   border:1px solid #334155;
   background:#020617;
   color:white;
 }
 
-button:hover{
-  background:#1e293b;
-  cursor:pointer;
-}
-
 .course{
-  border:1px solid #334155;
-  border-radius:12px;
-  padding:10px;
-  margin-bottom:12px;
   display:flex;
   justify-content:space-between;
-  align-items:center;
-}
-
-/* REMOVE BUTTON */
-.deleteBtn{
-  background:#ef4444;
-  border:none;
-  padding:6px 10px;
+  padding:8px;
+  border:1px solid #334155;
+  margin-bottom:8px;
   border-radius:8px;
-  font-size:12px;
   cursor:pointer;
 }
 
-.deleteBtn:hover{
-  background:#dc2626;
+.deleteBtn{
+  background:red;
+  border:none;
+  padding:4px 8px;
+  cursor:pointer;
 }
 
 #player{
   width:100%;
   aspect-ratio:16/9;
-  border-radius:14px;
   background:black;
-}
-
-/* BUTTON */
-.playlistBtn{
-  position:absolute;
-  top:20px;
-  right:20px;
-  background:rgba(0,0,0,0.7);
-  padding:8px 12px;
-  border-radius:8px;
-  cursor:pointer;
-  z-index:10;
-}
-
-/* PANEL */
-.playlistPanel{
-  position:absolute;
-  top:60px;
-  right:20px;
-  width:260px;
-  max-height:400px;
-  overflow-y:auto;
-  background:#020617;
-  border:1px solid #334155;
   border-radius:10px;
-  display:none;
-}
-
-.playlistItem{
-  padding:8px;
-  border-bottom:1px solid #1e293b;
-  cursor:pointer;
-}
-
-.playlistItem.active{
-  background:#1e293b;
 }
 </style>
 </head>
 
 <body>
 
-<header><strong>StudyTube</strong></header>
+<header>Goontube</header>
 
 <main>
 
 <aside>
-<input id="title" placeholder="Course name">
-<input id="url" placeholder="YouTube playlist link">
-<button onclick="addCourse()">Add</button>
+<input id="titleInput" placeholder="Course name">
+<input id="urlInput" placeholder="Paste YouTube Playlist Link">
+<button onclick="addCourse()">Add Playlist</button>
 
 <div id="courses"></div>
 </aside>
 
 <section>
-
 <div id="player"></div>
-
-<div class="playlistBtn" onclick="togglePlaylist()">📂 Playlist</div>
-<div id="playlistPanel" class="playlistPanel"></div>
-
 </section>
 
 </main>
 
 <script>
-let courses = JSON.parse(localStorage.getItem("studytube_courses")||"[]");
-let player;
-let currentIndex=null;
+let courses = JSON.parse(localStorage.getItem("courses") || "[]");
+let progress = JSON.parse(localStorage.getItem("progress") || "{}");
 
-/* SAVE */
-function save(){
- localStorage.setItem("studytube_courses",JSON.stringify(courses));
+let player;
+let currentCourse = null;
+
+/* EXTRACT PLAYLIST ID */
+function getPlaylistId(url){
+  try{
+    let u = new URL(url);
+    return u.searchParams.get("list");
+  }catch{
+    return null;
+  }
 }
 
 /* ADD */
 function addCourse(){
- let title=titleInput.value.trim();
- let url=urlInput.value.trim();
+  let title = document.getElementById("titleInput").value.trim();
+  let url = document.getElementById("urlInput").value.trim();
 
- let listId;
- try{
-   listId=new URL(url).searchParams.get("list");
- }catch{}
+  let listId = getPlaylistId(url);
 
- if(!title||!listId){
-   alert("Invalid playlist");
-   return;
- }
+  if(!title){
+    alert("Enter title");
+    return;
+  }
 
- courses.push({title,listId});
- save();
- render();
+  if(!listId){
+    alert("Invalid playlist link");
+    return;
+  }
+
+  courses.push({title,listId});
+  localStorage.setItem("courses", JSON.stringify(courses));
+
+  render();
 }
 
 /* REMOVE */
 function removeCourse(i){
- if(!confirm("Delete this playlist?")) return;
+  if(!confirm("Delete playlist?")) return;
 
- if(i === currentIndex && player){
-   player.stopVideo();
-   currentIndex = null;
- }
+  courses.splice(i,1);
+  localStorage.setItem("courses", JSON.stringify(courses));
 
- courses.splice(i,1);
- save();
- render();
+  render();
 }
 
-/* RENDER COURSES */
+/* RENDER */
 function render(){
- let box=document.getElementById("courses");
- box.innerHTML="";
+  let box = document.getElementById("courses");
+  box.innerHTML = "";
 
- courses.forEach((c,i)=>{
-  let div=document.createElement("div");
-  div.className="course";
+  courses.forEach((c,i)=>{
+    let div = document.createElement("div");
+    div.className = "course";
 
-  div.innerHTML = `
-    <span>${c.title}</span>
-    <button class="deleteBtn">Remove</button>
-  `;
+    let percent = progress[c.listId]?.percent || 0;
 
-  /* OPEN */
-  div.onclick=()=>openCourse(i);
+    div.innerHTML = `
+      <span>${c.title} (${percent}%)</span>
+      <button class="deleteBtn">X</button>
+    `;
 
-  /* REMOVE BUTTON FIX */
-  div.querySelector(".deleteBtn").onclick=(e)=>{
-    e.stopPropagation(); // IMPORTANT
-    removeCourse(i);
-  };
+    div.onclick = ()=>openCourse(i);
 
-  box.appendChild(div);
- });
+    div.querySelector(".deleteBtn").onclick = (e)=>{
+      e.stopPropagation();
+      removeCourse(i);
+    };
+
+    box.appendChild(div);
+  });
 }
 
 /* OPEN */
 function openCourse(i){
- currentIndex=i;
- player.loadPlaylist({list:courses[i].listId});
- waitForPlaylist();
+  currentCourse = courses[i];
+
+  player.loadPlaylist({
+    list: currentCourse.listId,
+    listType: "playlist"
+  });
+
+  setTimeout(updateProgress, 2000);
 }
 
-/* WAIT */
-function waitForPlaylist(retry=0){
- let list=player.getPlaylist();
+/* PROGRESS TRACK */
+function updateProgress(){
+  if(!player || !currentCourse) return;
 
- if(list && list.length){
-   renderPlaylist();
- } else if(retry < 10){
-   setTimeout(()=>waitForPlaylist(retry+1),500);
- }
+  let index = player.getPlaylistIndex();
+  let total = player.getPlaylist()?.length || 1;
+
+  let percent = Math.floor((index / total) * 100);
+
+  progress[currentCourse.listId] = {percent};
+
+  localStorage.setItem("progress", JSON.stringify(progress));
+
+  render();
 }
 
-/* TOGGLE */
-function togglePlaylist(){
- let p=document.getElementById("playlistPanel");
- p.style.display = p.style.display==="block"?"none":"block";
-}
-
-/* RENDER PLAYLIST */
-function renderPlaylist(){
- let panel=document.getElementById("playlistPanel");
- let list=player.getPlaylist();
-
- panel.innerHTML="";
-
- list.forEach((id,i)=>{
-   let div=document.createElement("div");
-
-   div.className="playlistItem"+
-    (i===player.getPlaylistIndex()?" active":"");
-
-   div.innerText="Video "+(i+1);
-
-   div.onclick=()=>{
-     player.playVideoAt(i);
-   };
-
-   panel.appendChild(div);
- });
-}
-
-/* YT */
+/* PLAYER READY */
 function onYouTubeIframeAPIReady(){
- player=new YT.Player("player",{
-   events:{
-     onStateChange:()=>{
-       renderPlaylist();
-     }
-   }
- });
+  player = new YT.Player("player",{
+    events:{
+      onStateChange:()=>{
+        updateProgress();
+      }
+    }
+  });
 }
 
 render();
