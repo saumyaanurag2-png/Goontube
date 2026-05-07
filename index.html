@@ -4,11 +4,9 @@
 <meta charset="UTF-8">
 <title>Playlist Player</title>
 
-<script src="https://www.youtube.com/iframe_api"></script>
-
 <style>
 body{
-  background:black;
+  background:#111;
   color:white;
   font-family:sans-serif;
   padding:20px;
@@ -16,19 +14,21 @@ body{
 
 input{
   width:100%;
-  padding:10px;
+  padding:12px;
   margin-bottom:10px;
 }
 
 button{
-  padding:10px;
   width:100%;
+  padding:12px;
+  cursor:pointer;
 }
 
-#player{
-  margin-top:20px;
+iframe{
   width:100%;
-  aspect-ratio:16/9;
+  height:500px;
+  margin-top:20px;
+  border:none;
 }
 </style>
 </head>
@@ -38,56 +38,49 @@ button{
 <h2>YouTube Playlist Player</h2>
 
 <input
-  id="url"
+  id="playlistInput"
   placeholder="Paste YouTube Playlist URL"
 />
 
-<button onclick="loadPlaylist()">
-Load Playlist
+<button onclick="playPlaylist()">
+Play Playlist
 </button>
 
-<div id="player"></div>
+<iframe
+  id="player"
+  allowfullscreen
+></iframe>
 
 <script>
-let player;
-
-function onYouTubeIframeAPIReady(){
-
-  player = new YT.Player("player",{
-    height:"500",
-    width:"100%",
-    videoId:"dQw4w9WgXcQ"
-  });
-}
-
-function getPlaylistId(url){
-
-  try{
-    let u = new URL(url);
-    return u.searchParams.get("list");
-  }
-  catch{
-    return null;
-  }
-}
-
-function loadPlaylist(){
+function playPlaylist(){
 
   let url =
-    document.getElementById("url").value;
+    document.getElementById("playlistInput").value;
 
-  let listId =
-    getPlaylistId(url);
+  try{
 
-  if(!listId){
-    alert("Invalid Playlist URL");
-    return;
+    let parsed =
+      new URL(url);
+
+    let playlistId =
+      parsed.searchParams.get("list");
+
+    if(!playlistId){
+      alert("Invalid playlist");
+      return;
+    }
+
+    let embedUrl =
+      "https://www.youtube.com/embed/videoseries?list="
+      + playlistId;
+
+    document.getElementById("player").src =
+      embedUrl;
+
   }
-
-  player.loadPlaylist({
-    list:listId,
-    listType:"playlist"
-  });
+  catch{
+    alert("Invalid URL");
+  }
 }
 </script>
 
